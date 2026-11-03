@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BGP/MPLS VPN: control plane and forwarding plane</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#eef1f5;--panel:#fff;--ink:#122033;--mut:#556579;--line:#c3cdda;--cloud:#e3e9f1;--amber:#f2b632;--teal:#3cc4bd;--ctl:#b48cf2;--on:#08121f;--ipbg:#c9d2de;--ipfg:#122033;--sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1624;--panel:#12233a;--ink:#e6edf6;--mut:#93a4ba;--line:#2a3f5c;--cloud:#0f2036;--ipbg:#3b516e;--ipfg:#e6edf6}}
+:root[data-theme="dark"]{--bg:#0b1624;--panel:#12233a;--ink:#e6edf6;--mut:#93a4ba;--line:#2a3f5c;--cloud:#0f2036;--ipbg:#3b516e;--ipfg:#e6edf6}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.55 var(--sans)}
+.page{max-width:1180px;margin:0 auto;padding:22px 16px 40px}
+h1{font-size:clamp(22px,3.2vw,30px);line-height:1.2;margin:0 0 6px;font-weight:600}
+.sub{color:var(--mut);margin:0 0 16px;max-width:70ch}
+.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.tabs button{font:500 14px var(--sans);padding:9px 16px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,select:focus-visible{outline:3px solid var(--ctl);outline-offset:2px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+@media(min-width:960px){.grid{grid-template-columns:minmax(0,1fr) 290px}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.stage{padding:8px}
+svg{display:block;width:100%;height:auto}
+svg text{font-family:var(--sans)}
+.nm{font:600 12px var(--sans);text-anchor:middle}
+.sb{font:500 10.5px var(--mono);text-anchor:middle;fill:var(--mut)}
+.zt{font:500 11px var(--sans);text-anchor:middle;fill:var(--mut)}
+.tt{font:600 10.5px var(--mono);fill:var(--on)}
+.mk{opacity:0;transition:opacity .4s}.mk.on{opacity:1}
+body.fp .faint{opacity:.35}
+.pulse rect{animation:pl .9s}
+@keyframes pl{0%,100%{filter:none}50%{filter:drop-shadow(0 0 7px var(--ctl))}}
+.pp{transform-box:fill-box;transform-origin:center}
+.pop .pp{animation:pop .5s}
+@keyframes pop{0%{transform:scale(.55);opacity:.2}100%{transform:scale(1);opacity:1}}
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:8px 10px 4px;font-size:13px;color:var(--mut)}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px}
+.ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px}
+.ctrl button,.ctrl select{font:500 14px var(--sans);padding:8px 14px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;cursor:pointer}
+.ctrl .go{background:var(--ink);color:var(--bg);border-color:var(--ink);min-width:84px}
+.cnt{margin-left:auto;color:var(--mut);font-size:13px}
+.scene{padding:16px 18px;margin-top:16px}
+.scene h2{margin:0 0 6px;font-size:19px;line-height:1.3;font-weight:600}
+.scene p{margin:0 0 8px;max-width:75ch}
+.ref{color:var(--mut);font-size:13px}
+.blks{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:12px}
+.blk{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg)}
+.blk b{display:block;font-size:13px;margin-bottom:4px}
+.blk pre{margin:0;font:500 12px/1.6 var(--mono);white-space:pre-wrap;word-break:break-word}
+aside{padding:14px}
+aside h3{margin:0 0 8px;font-size:14px}
+ol{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+ol button{width:100%;text-align:left;font:400 13.5px/1.35 var(--sans);padding:8px 10px;border:1.5px solid transparent;background:none;color:var(--ink);border-radius:8px;cursor:pointer;display:flex;gap:8px}
+ol button span{color:var(--mut);min-width:18px}
+ol button[aria-current="step"]{border-color:var(--ink);background:var(--bg);font-weight:600}
+ol button.done span{color:var(--teal)}
+.note{margin-top:14px;font-size:12.5px;color:var(--mut)}
+@media(prefers-reduced-motion:reduce){.mk,.pulse rect,.pop .pp{animation:none;transition:none}}
+</style>
+</head>
+<body class="cp">
+<div class="page">
+<h1>BGP/MPLS VPN: from one customer route to one labelled packet</h1>
+<p class="sub">Control plane and forwarding plane as defined in RFC 4364 (the update of RFC 2547). One customer, two sites, one VRF called RED. Step through it, or press Play.</p>
+<div class="tabs" role="tablist">
+<button role="tab" id="tcp" aria-selected="true">Control plane: how routes and labels are learned</button>
+<button role="tab" id="tfp" aria-selected="false">Forwarding plane: how a packet crosses</button>
+</div>
+<div class="grid">
+<div>
+<div class="card stage">
+<svg id="svg" viewBox="0 0 940 330" role="img" aria-label="Topology: Host A, CE1, PE1, P1, P2, PE2, CE2, Host B">
+<defs><pattern id="gr" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="var(--line)" stroke-width=".4" opacity=".6"/></pattern></defs>
+<rect width="940" height="330" fill="url(#gr)"/>
+<rect x="205" y="110" width="510" height="200" rx="14" fill="var(--cloud)" stroke="var(--line)" stroke-dasharray="6 5"/>
+<rect x="8" y="110" width="182" height="200" rx="14" fill="none" stroke="var(--line)" stroke-dasharray="6 5"/>
+<rect x="750" y="110" width="182" height="200" rx="14" fill="none" stroke="var(--line)" stroke-dasharray="6 5"/>
+<text class="zt" x="460" y="302">Provider backbone, AS 65000: IGP + LDP, P routers hold no customer routes</text>
+<text class="zt" x="99" y="302">Customer site A, 10.1.0.0/24</text>
+<text class="zt" x="841" y="302">Customer site B, 10.2.0.0/24</text>
+<g id="links"></g>
+<g class="mk faint" data-mark="sess"><path d="M250 192Q460 -20 670 192" fill="none" stroke="var(--ctl)" stroke-width="2.5" stroke-dasharray="7 5"/><text class="zt" x="460" y="72" style="fill:var(--ink)">MP-iBGP session, address family VPNv4</text></g>
+<g id="chips"></g>
+<g id="nodes"></g>
+<g id="tokens"></g>
+<g id="pkt" style="display:none"></g>
+</svg>
+<div class="legend">
+<span><i style="background:var(--amber)"></i>Transport label (LDP)</span>
+<span><i style="background:var(--teal)"></i>VPN label (BGP)</span>
+<span><i style="background:var(--ctl)"></i>Control-plane message</span>
+<span><i style="background:var(--ipbg)"></i>Customer IP packet</span>
+</div>
+<div class="ctrl">
+<button id="bk">Back</button><button id="pl" class="go">Play</button><button id="nx">Next</button>
+<label for="sp" style="font-size:13px;color:var(--mut)">Speed</label>
+<select id="sp"><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option></select>
+<span class="cnt" id="cnt"></span>
+</div>
+</div>
+<div class="card scene" aria-live="polite">
+<h2 id="ttl"></h2><p id="desc"></p><p class="ref" id="ref"></p>
+<div class="blks" id="st"></div>
+</div>
+</div>
+<aside class="card">
+<h3 id="lh"></h3>
+<ol id="list"></ol>
+<p class="note">Assumptions: one customer, eBGP between CE and PE, LDP for transport labels, PHP enabled, full-mesh iBGP between the two PEs. Addresses, labels, RD and RT are example values.</p>
+</aside>
+</div>
+</div>
+<script>
+const NS="http://www.w3.org/2000/svg",Y=215,PY=150;
+const $=s=>document.querySelector(s);
+const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e};
+const NODES=[["A",40,"Host A","h","10.1.0.10"],["CE1",135,"CE1","c","AS 65101"],["PE1",250,"PE1","pe","lo 1.1.1.1"],["P1",390,"P1","p","lo 2.2.2.2"],["P2",530,"P2","p","lo 3.3.3.3"],["PE2",670,"PE2","pe","lo 4.4.4.4"],["CE2",785,"CE2","c","AS 65102"],["B",890,"Host B","h","10.2.0.10"]];
+const X={},NG={};
+NODES.forEach(n=>X[n[0]]=n[1]);
+NODES.forEach((n,k)=>{if(k)el("line",{x1:NODES[k-1][1],y1:Y,x2:n[1],y2:Y,stroke:"var(--line)","stroke-width":3},$("#links"))});
+NODES.forEach(([id,x,lb,kind,sb])=>{
+ const g=el("g",{},$("#nodes"));NG[id]=g;
+ const w={h:50,c:56,p:64,pe:64}[kind],h={h:30,c:36,p:40,pe:40}[kind];
+ const pe=kind==="pe";
+ el("rect",{x:x-w/2,y:Y-h/2,width:w,height:h,rx:8,fill:pe?"var(--ink)":"var(--panel)",stroke:"var(--ink)","stroke-width":1.5,"stroke-dasharray":kind==="c"?"4 3":"none"},g);
+ const t=el("text",{x,y:Y+4,class:"nm",fill:pe?"var(--bg)":"var(--ink)"},g);t.textContent=lb;
+ const s=el("text",{x,y:248,class:"sb"},g);s.textContent=sb;
+});
+function chip(m,x,y,txt,col){const g=el("g",{class:"mk","data-mark":m},$("#chips"));const w=txt.length*6.4+14;el("rect",{x:x-w/2,y:y-10,width:w,height:20,rx:5,fill:col},g);const t=el("text",{x,y:y+4,"text-anchor":"middle",class:"tt"},g);t.textContent=txt}
+chip("l1",600,Y,"impl-null","var(--amber)");chip("l2",460,Y,"30","var(--amber)");chip("l3",320,Y,"20","var(--amber)");
+chip("pe1vrf",250,272,"RED: 10.2.0.0/24 to 4.4.4.4","var(--teal)");chip("pe2vrf",670,272,"RED: 10.2.0.0/24 via CE2","var(--teal)");
+
+const route=(ids,y)=>ids.map(i=>[X[i],y]);
+const arc=(a,b)=>{const x0=X[a],x1=X[b],r=[];for(let i=0;i<=48;i++){const t=i/48,u=1-t;r.push([u*u*x0+2*u*t*(x0+x1)/2+t*t*x1,u*u*192+2*u*t*-20+t*t*192])}return r};
+const mk=pts=>{const L=[0];for(let i=1;i<pts.length;i++)L.push(L[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));return{pts,L,T:L[L.length-1]}};
+const at=(m,p)=>{p=Math.max(0,Math.min(1,p));const d=p*m.T;let i=1;while(i<m.L.length-1&&m.L[i]<d)i++;const s=(d-m.L[i-1])/((m.L[i]-m.L[i-1])||1);return[m.pts[i-1][0]+(m.pts[i][0]-m.pts[i-1][0])*s,m.pts[i-1][1]+(m.pts[i][1]-m.pts[i-1][1])*s]};
+
+const CP=[
+{t:"The IGP advertises each PE loopback",d:"OSPF or IS-IS runs between the provider routers only. After it converges, PE1 can reach PE2’s loopback 4.4.4.4/32 and the reverse. That loopback will later be the BGP next hop. No customer routes are carried in the IGP.",ref:"Underlay: RFC 2328 (OSPF) or RFC 1195 (IS-IS). Needed by RFC 4364 §4.",
+ fl:[{p:["PE2","P2","P1","PE1"],l:"IGP 4.4.4.4/32",dur:2800,dy:-14},{p:["PE1","P1","P2","PE2"],l:"IGP 1.1.1.1/32",dur:2800,dy:14}],
+ st:[["PE1 global RIB",["4.4.4.4/32 via P1 (IGP)"]],["PE2 global RIB",["1.1.1.1/32 via P2 (IGP)"]]]},
+{t:"LDP builds a labelled path to each loopback",d:"LDP binds a transport label to every IGP prefix. PE2 tells P2 to pop the label for 4.4.4.4 (implicit-null, label 3), which is penultimate hop popping. P2 then advertises label 30 to P1, and P1 advertises label 20 to PE1. The chain is an LSP from PE1 to PE2.",ref:"RFC 5036 (LDP), RFC 3031 (MPLS architecture).",
+ fl:[{p:["PE2","P2"],l:"LDP 4.4.4.4 = implicit-null",dur:1700,mark:"l1"},{p:["P2","P1"],l:"LDP 4.4.4.4 = 30",dur:1700,delay:1800,mark:"l2"},{p:["P1","PE1"],l:"LDP 4.4.4.4 = 20",dur:1700,delay:3600,mark:"l3"}],
+ st:[["PE1 FEC 4.4.4.4/32",["push 20, send to P1"]],["P1 LFIB",["in 20: swap 30, out to P2"]],["P2 LFIB",["in 30: pop, out to PE2"]]]},
+{t:"PE1 and PE2 open a VPNv4 BGP session",d:"The two PEs peer iBGP between their loopbacks. The OPEN message carries the multiprotocol capability for the VPN-IPv4 address family (AFI 1, SAFI 128). Packets of the session ride the LSP built in the last step. P1 and P2 are not BGP speakers for VPN routes.",ref:"RFC 4271 (BGP-4), RFC 4760 (multiprotocol BGP), RFC 4364 §4.",
+ fl:[{a:["PE1","PE2"],l:"BGP OPEN: VPNv4",dur:2300},{a:["PE2","PE1"],l:"BGP OPEN: VPNv4",dur:2300,delay:300,mark:"sess"}],
+ st:[["PE1 and PE2 config idea",["neighbor 4.4.4.4 remote-as 65000","update-source loopback0","address-family vpnv4","  send-community extended"]]]},
+{t:"PE2 learns site B’s prefix from CE2",d:"PE2’s interface toward CE2 is bound to VRF RED. CE2 announces 10.2.0.0/24 over eBGP (a static route or an IGP would also work). The route goes into the VRF RED table, not the global table.",ref:"RFC 4364 §3 (per-site tables) and §6 (PE learns CE routes).",
+ fl:[{p:["CE2","PE2"],l:"eBGP 10.2.0.0/24",dur:1700,mark:"pe2vrf"}],
+ st:[["PE2 VRF RED",["rd 65000:100","route-target import 65000:100","route-target export 65000:100","10.2.0.0/24 via CE2"]]]},
+{t:"PE2 exports the route as a VPNv4 route",d:"PE2 prepends the route distinguisher to make the prefix unique across customers, attaches the export route target as an extended community, allocates VPN label 100 and sets the next hop to its own loopback. It sends one UPDATE to PE1. P1 and P2 never see it.",ref:"RFC 4364 §4.1 (VPN-IPv4 and RD), §4.3 (route targets), RFC 4360 (extended communities).",
+ fl:[{pulse:"PE2",dur:800},{a:["PE2","PE1"],l:"VPNv4 UPDATE",dur:3000,delay:900}],
+ st:[["UPDATE contents",["NLRI 65000:100:10.2.0.0/24","Label 100","Ext community RT:65000:100","Next hop 4.4.4.4","AS_PATH 65102"]]]},
+{t:"PE1 imports the route by route target",d:"RT 65000:100 matches the import list of VRF RED on PE1, so the route is installed there. A VRF without that RT would ignore it. The RD is dropped. To reach next hop 4.4.4.4, PE1 uses the LDP binding from step 2, which gives transport label 20.",ref:"RFC 4364 §4.3 (route distribution), §5 (two labels).",
+ fl:[{pulse:"PE1",dur:900,mark:"pe1vrf"}],
+ st:[["PE1 VRF RED",["10.2.0.0/24 BGP, next hop 4.4.4.4","VPN label 100 (from BGP)","Transport label 20 (from LDP, via P1)"]]]},
+{t:"PE1 passes the route to CE1",d:"PE1 advertises 10.2.0.0/24 to CE1 as an ordinary IPv4 route. CE1 never sees labels, RDs or route targets. It only knows that 10.2.0.0/24 is behind PE1. The control plane is now converged.",ref:"RFC 4364 §7 (CE learns routes from PE).",
+ fl:[{p:["PE1","CE1"],l:"eBGP 10.2.0.0/24",dur:1500},{p:["CE1","A"],l:"route 10.2.0.0/24",dur:1500,delay:1600}],
+ st:[["CE1 routing table",["10.2.0.0/24 via PE1 (eBGP)"]],["Host A",["default route to CE1"]]]}
+];
+const FP=[
+{t:"Host A sends a packet to Host B",at:"A",s0:[],d:"Host A (10.1.0.10) sends an IP packet to Host B (10.2.0.10). Its default route points at CE1. So far this is ordinary IP.",ref:"The customer network is not aware of MPLS.",
+ st:[["Packet",["src 10.1.0.10","dst 10.2.0.10","no labels"]]]},
+{t:"CE1 forwards plain IP to PE1",path:["A","CE1","PE1"],s0:[],s1:[],d:"CE1 uses the route it learned from PE1. The packet arrives at PE1 as plain IP on an interface bound to VRF RED, so PE1 looks up the destination in VRF RED, not in the global table.",ref:"RFC 4364 §3.",
+ st:[["On the wire","IP packet only"].slice(0,1).concat([["Ethernet | IP"]])]},
+{t:"PE1 pushes two labels",at:"PE1",s0:[],s1:[20,100],d:"The VRF RED lookup finds 10.2.0.0/24 with next hop 4.4.4.4 and VPN label 100. A second lookup for 4.4.4.4 gives transport label 20 toward P1. PE1 pushes label 100 first, then 20 on top.",ref:"RFC 4364 §5 (forwarding across the backbone), RFC 3032 (label stack).",
+ st:[["PE1 VRF RED",["10.2.0.0/24: push 100, next hop 4.4.4.4"]],["PE1 recursion",["4.4.4.4/32: push 20, out to P1"]],["Stack, top first",["20 (transport)","100 (VPN)"]]]},
+{t:"P1 swaps the top label",path:["PE1","P1"],s0:[20,100],s1:[30,100],d:"P1 forwards on the top label only. Its LFIB says: in 20, swap to 30, send to P2. P1 never reads label 100 or the IP header, so it needs no customer routes.",ref:"RFC 3031, RFC 3032.",
+ st:[["P1 LFIB",["in 20: swap 30, out to P2"]],["Stack, top first",["30 (transport)","100 (VPN)"]]]},
+{t:"P2 pops the transport label",path:["P1","P2"],s0:[30,100],s1:[100],d:"P2 is the penultimate hop. PE2 asked for implicit-null on 4.4.4.4, so P2 removes the transport label instead of swapping it. PE2 is spared one label lookup.",ref:"RFC 3031 (penultimate hop popping).",
+ st:[["P2 LFIB",["in 30: pop, out to PE2"]],["Stack, top first",["100 (VPN)"]]]},
+{t:"PE2 pops the VPN label and uses VRF RED",path:["P2","PE2"],s0:[100],s1:[],d:"Label 100 is bound to VRF RED on PE2. PE2 pops it, then looks up 10.2.0.0/24 in VRF RED and finds CE2 as the next hop. The label told PE2 which table to use, so overlapping customer addresses stay separate.",ref:"RFC 4364 §5.",
+ st:[["PE2 LFIB",["in 100: pop, lookup in VRF RED"]],["PE2 VRF RED",["10.2.0.0/24 via CE2"]]]},
+{t:"Plain IP reaches Host B",path:["PE2","CE2","B"],s0:[],s1:[],d:"PE2 sends the packet to CE2 as ordinary IP, and CE2 delivers it to Host B. The customer never saw MPLS. The return path works the same way in reverse: PE2 learns 10.1.0.0/24 from PE1 with its own VPN label.",ref:"RFC 4364 §5, §7.",
+ st:[["Delivered",["src 10.1.0.10","dst 10.2.0.10"]]]}
+];
+FP[1].st=[["On the wire",["Ethernet | IP","no labels yet"]]];
+const CPM=new Set();CP.forEach(s=>s.fl.forEach(f=>f.mark&&CPM.add(f.mark)));
+
+let mode="cp",idx=0,playing=false,speed=1,raf=0,t0=0,adv=0,run=null;
+const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const S=()=>mode==="cp"?CP:FP;
+const marks=set=>document.querySelectorAll("[data-mark]").forEach(e=>e.classList.toggle("on",set.has(e.dataset.mark)));
+const pulse=(id)=>{const g=NG[id];g.classList.remove("pulse");void g.getBoundingClientRect();g.classList.add("pulse")};
+
+function pill(l){const g=el("g",{style:"display:none"},$("#tokens"));const w=l.length*6.4+14;el("rect",{x:-w/2,y:-10,width:w,height:20,rx:10,fill:"var(--ctl)"},g);const t=el("text",{"text-anchor":"middle",y:4,class:"tt"},g);t.textContent=l;return g}
+function draw(st,flash){
+ const g=$("#pkt");g.innerHTML="";g.classList.remove("pop");
+ const parts=st.map(v=>({v,w:34})).concat([{v:"IP",w:84}]);
+ const W=parts.reduce((a,p)=>a+p.w+2,-2);let x=-W/2;
+ parts.forEach(p=>{const o=el("g",{transform:`translate(${x},-12)`},g),e=el("g",{class:"pp"},o);
+  const ip=p.v==="IP";
+  el("rect",{width:p.w,height:24,rx:5,fill:ip?"var(--ipbg)":p.v===100?"var(--teal)":"var(--amber)"},e);
+  const t=el("text",{x:p.w/2,y:16,"text-anchor":"middle",class:"tt",style:"fill:"+(ip?"var(--ipfg)":"var(--on)")},e);t.textContent=ip?"IP":p.v;x+=p.w+2});
+ if(flash){void g.getBoundingClientRect();g.classList.add("pop")}
+}
+const startNode=n=>{if(n===0)return FP[0].at;for(let k=n-1;k>=0;k--){const s=FP[k];if(s.path)return s.path[s.path.length-1];if(s.at)return s.at}};
+
+function go(n){
+ cancelAnimationFrame(raf);clearTimeout(adv);
+ const sc=S();idx=Math.max(0,Math.min(sc.length-1,n));const s=sc[idx];
+ $("#tokens").innerHTML="";Object.values(NG).forEach(g=>g.classList.remove("pulse"));
+ const m=new Set();
+ if(mode==="cp"){for(let k=0;k<idx;k++)sc[k].fl.forEach(f=>f.mark&&m.add(f.mark));$("#pkt").style.display="none";
+  run={fl:s.fl.map(f=>({f,m:f.pulse?null:mk(f.a?arc(f.a[0],f.a[1]):route(f.p,Y+(f.dy||0))),g:f.pulse?null:pill(f.l),done:false})),end:Math.max(...s.fl.map(f=>(f.delay||0)+f.dur))+700}}
+ else{CPM.forEach(x=>m.add(x));
+  const sn=startNode(idx),pth=s.path?mk(route(s.path,PY)):null,md=pth?pth.T*9:0;
+  $("#pkt").style.display="";draw(s.s0,false);
+  run={sn,pth,md,s,morphed:false,end:350+md+(s.s1?1500:1900)};
+  $("#pkt").setAttribute("transform",`translate(${X[sn]},${PY})`);
+  if(s.at&&s.s1){}
+  if(idx===0){pulse(sn)}}
+ marks(m);run.marks=m;
+ $("#ttl").textContent=s.t;$("#desc").textContent=s.d;$("#ref").textContent=s.ref;
+ $("#cnt").textContent="Step "+(idx+1)+" of "+sc.length;
+ $("#st").innerHTML=s.st.map(b=>`<div class="blk"><b>${b[0]}</b><pre>${b[1].join("\n")}</pre></div>`).join("");
+ document.querySelectorAll("#list button").forEach((b,k)=>{b.toggleAttribute("aria-current",k===idx);if(k===idx)b.setAttribute("aria-current","step");else b.removeAttribute("aria-current");b.classList.toggle("done",k<idx)});
+ $("#bk").disabled=idx===0;$("#nx").disabled=idx===sc.length-1;
+ t0=performance.now();raf=requestAnimationFrame(frame);
+}
+function frame(now){
+ const t=(now-t0)*speed*(RM?8:1);
+ if(mode==="cp"){
+  run.fl.forEach(o=>{const f=o.f,u=(t-(f.delay||0))/f.dur;
+   if(f.pulse){if(u>=0&&!o.started){o.started=true;pulse(f.pulse)}}
+   else if(u>=0&&u<=1){o.g.style.display="";const p=at(o.m,u);o.g.setAttribute("transform",`translate(${p[0]},${p[1]})`)}
+   else o.g.style.display="none";
+   if(u>=1&&!o.done){o.done=true;if(f.mark){run.marks.add(f.mark);marks(run.marks)}}});
+ }else{
+  const r=run,s=r.s;
+  if(r.pth){const u=(t-350)/r.md,p=at(r.pth,u);$("#pkt").setAttribute("transform",`translate(${p[0]},${p[1]})`)}
+  const mt=350+r.md;
+  if(!r.morphed&&t>=mt&&(s.s1||s.at)){r.morphed=true;if(s.s1&&JSON.stringify(s.s1)!==JSON.stringify(s.s0)){draw(s.s1,true)}const nd=s.path?s.path[s.path.length-1]:s.at;if(s.path&&["P1","P2","PE2"].includes(nd))pulse(nd);if(s.at&&s.s1)pulse(s.at)}
+ }
+ if(t<run.end){raf=requestAnimationFrame(frame)}
+ else if(playing){adv=setTimeout(()=>{if(idx<S().length-1)go(idx+1);else{playing=false;$("#pl").textContent="Replay"}},500/speed)}
+ else if(false){}
+}
+function buildList(){
+ $("#lh").textContent=mode==="cp"?"Control plane steps":"Forwarding plane steps";
+ $("#list").innerHTML=S().map((s,k)=>`<li><button data-k="${k}"><span>${k+1}</span>${s.t}</button></li>`).join("");
+ document.querySelectorAll("#list button").forEach(b=>b.onclick=()=>{go(+b.dataset.k)});
+}
+function setMode(m){mode=m;playing=false;$("#pl").textContent="Play";document.body.className=m;
+ $("#tcp").setAttribute("aria-selected",m==="cp");$("#tfp").setAttribute("aria-selected",m==="fp");buildList();go(0)}
+$("#tcp").onclick=()=>setMode("cp");$("#tfp").onclick=()=>setMode("fp");
+$("#bk").onclick=()=>{playing=false;$("#pl").textContent="Play";go(idx-1)};
+$("#nx").onclick=()=>{playing=false;$("#pl").textContent="Play";go(idx+1)};
+$("#pl").onclick=()=>{
+ if(playing){playing=false;$("#pl").textContent="Play";clearTimeout(adv);return}
+ playing=true;$("#pl").textContent="Pause";
+ if(idx>=S().length-1&&performance.now()-t0>run.end/speed)go(0);else{clearTimeout(adv);if((performance.now()-t0)*speed>=run.end)go(idx+1<S().length?idx+1:0)}
+};
+$("#sp").onchange=e=>{const old=(performance.now()-t0)*speed;speed=+e.target.value;t0=performance.now()-old/speed};
+addEventListener("keydown",e=>{if(e.target.tagName==="SELECT")return;if(e.key==="ArrowRight"&&!$("#nx").disabled)$("#nx").click();if(e.key==="ArrowLeft"&&!$("#bk").disabled)$("#bk").click()});
+setMode("cp");
+</script>
+</body>
+</html>
