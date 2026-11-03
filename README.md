@@ -4,7 +4,7 @@ An interactive, step-by-step animation of how a BGP/MPLS IP VPN works, covering 
 
 It follows the model in [RFC 4364](https://www.rfc-editor.org/rfc/rfc4364) (which obsoletes RFC 2547).
 
-**Live demo:** https://YOUR-USERNAME.github.io/bgp-mpls-vpn-visualizer/
+**Live demo:** https://sunilgama.github.io/bgp-mpls-vpn-visualizer/
 
 ## What it shows
 
